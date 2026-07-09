@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { apiUrl } from '../config';
 import { Activity, Play, Terminal, Target, AlertTriangle } from 'lucide-react';
 import HistoryTable from '../components/HistoryTable';
 
@@ -29,7 +29,7 @@ export default function Dashboard() {
 
   const fetchMetrics = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/evaluate`);
+      const res = await axios.get(apiUrl('/evaluate'));
       setMetrics(res.data);
       setMetricsError(null);
     } catch (err) {
@@ -42,7 +42,7 @@ export default function Dashboard() {
     setIsTraining(true);
     setLogs([{ type: 'info', msg: 'Starting training job...' }]);
 
-    fetch(`${API_BASE_URL}/train`, {
+    fetch(apiUrl('/train'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ epochs, batch_size: batchSize, learning_rate: learningRate })

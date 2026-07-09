@@ -18,4 +18,4 @@ def get_allowed_origins() -> list[str]:
 DATABASE_URL = os.getenv("DATABASE_URL", str(BACKEND_DIR / "predictions.db"))
 MODEL_PATH = os.getenv("MODEL_PATH", str(BACKEND_DIR / "weights" / "best_model.pth"))
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "8001"))

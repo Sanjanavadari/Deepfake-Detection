@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { apiUrl } from '../config';
 import UploadCard from '../components/UploadCard';
 import ResultDisplay from '../components/ResultDisplay';
 import GradCamViewer from '../components/GradCamViewer';
@@ -23,7 +23,7 @@ export default function Home() {
     formData.append("file", file);
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/predict`, formData, {
+      const res = await axios.post(apiUrl('/predict'), formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setResult(res.data);

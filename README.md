@@ -66,7 +66,7 @@ cp .env.example .env
 python backend/main.py
 ```
 
-The API runs on `http://localhost:8000`. It auto-creates the SQLite database for prediction history.
+The API runs on `http://localhost:8001`. It auto-creates the SQLite database for prediction history.
 
 **Start the Frontend (React + Vite):**
 
@@ -91,13 +91,13 @@ Place real images in `real/` and fake images in `fake/`, then start training fro
 | `DATABASE_URL` | SQLite database file path | `backend/predictions.db` |
 | `MODEL_PATH` | Path to `best_model.pth` | `backend/weights/best_model.pth` |
 | `LOG_LEVEL` | Python log level | `INFO` |
-| `PORT` | Uvicorn port (Render injects this) | `8000` |
+| `PORT` | Uvicorn port (Render injects this) | `8001` |
 
 ### Frontend (`frontend/.env`)
 
 | Variable | Description | Local Default |
 |----------|-------------|---------------|
-| `VITE_API_BASE_URL` | Backend API URL (no trailing slash) | `http://localhost:8000` |
+| `VITE_API_BASE_URL` | Backend API URL (no trailing slash) | `http://localhost:8001` |
 
 ## Deploy Backend to Render
 
