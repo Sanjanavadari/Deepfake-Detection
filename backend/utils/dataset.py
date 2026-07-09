@@ -2,7 +2,7 @@ import os
 from PIL import Image
 from torch.utils.data import Dataset
 import torchvision.transforms as transforms
-from backend.utils.preprocess import mtcnn
+from backend.utils.preprocess import get_mtcnn
 
 class DeepfakeDataset(Dataset):
     def __init__(self, real_dir, fake_dir, transform=None):
@@ -32,7 +32,7 @@ class DeepfakeDataset(Dataset):
         
         # We apply MTCNN to crop face, if no face we just use the raw image resized.
         # For training, it's safer to use images that already have faces.
-        face = mtcnn(image)
+        face = get_mtcnn()(image)
         if face is None:
             # Fallback if no face detected
             face = transforms.ToTensor()(image.resize((224, 224)))

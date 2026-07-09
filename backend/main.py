@@ -1,59 +1,87 @@
-from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import io
-import torch
-import sys
+import logging
 import os
+import sys
+
+import torch
+import uvicorn
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from PIL import Image
+from pydantic import BaseModel
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.model import HybridDeepfakeDetector
 
+from backend.config import MODEL_PATH, PORT, LOG_LEVEL, get_allowed_origins
 from backend.database import init_db, save_prediction, get_all_predictions
 from backend.predict import predict_single_frame, predict_video
 from backend.evaluate import evaluate_model
 from backend.train import train_model
 
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger(__name__)
+
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Global model instance
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = None
+weights_loaded = False
+
 
 @app.on_event("startup")
 async def startup_event():
     await init_db()
-    
-    global model
+
+    global model, weights_loaded
     model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
-    
-    best_model_path = os.path.join(os.path.dirname(__file__), 'weights', 'best_model.pth')
-    if os.path.exists(best_model_path):
-        model.load_state_dict(torch.load(best_model_path, map_location=device))
-        print("Loaded pre-trained weights.")
+
+    if os.path.exists(MODEL_PATH):
+        model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
+        weights_loaded = True
+        logger.info("Loaded trained weights from %s", MODEL_PATH)
     else:
-        print("No pre-trained weights found. Using initialized model.")
-        
+        # No best_model.pth: uses timm pretrained EfficientNetV2 backbone + randomly
+        # initialized FC head. Predictions will NOT be meaningful until a trained
+        # best_model.pth is placed in backend/weights/.
+        weights_loaded = False
+        logger.warning(
+            "No trained weights at %s. Using pretrained backbone with untrained FC head. "
+            "Predictions will not be meaningful until best_model.pth is added.",
+            MODEL_PATH,
+        )
+
     model.to(device)
     model.eval()
+
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "model_loaded": model is not None,
+        "weights_loaded": weights_loaded,
+    }
+
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
-    
-    # Check if video
+
     is_video = file.filename.lower().endswith(('.mp4', '.avi', '.mov'))
-    
+
     try:
         if is_video:
             result = predict_video(model, contents, device)
@@ -65,34 +93,42 @@ async def predict(file: UploadFile = File(...)):
                 "confidence": float(confidence),
                 "grad_cam_image": grad_cam_b64
             }
-            
-        # Save to DB
+
         await save_prediction(
             filename=file.filename,
             label=result["label"],
             confidence=result["confidence"],
-            grad_cam_path=None # We store base64 in frontend, not db to save space
+            grad_cam_path=None,
         )
         return result
-        
+
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    except Exception as e:
-        # e.g., No face detected from preprocess.py will raise HTTPException
-        raise e
+    except Exception:
+        logger.exception("Prediction failed for file %s", file.filename)
+        raise HTTPException(status_code=500, detail="An error occurred during prediction.")
 
-from pydantic import BaseModel
+
 class TrainParams(BaseModel):
     epochs: int
     batch_size: int
     learning_rate: float
 
+
 @app.post("/train")
 async def train(params: TrainParams):
     return StreamingResponse(
         train_model(params.epochs, params.batch_size, params.learning_rate),
-        media_type="text/event-stream"
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
+
 
 @app.get("/evaluate")
 async def evaluate():
@@ -101,9 +137,11 @@ async def evaluate():
         raise HTTPException(status_code=400, detail=metrics["error"])
     return metrics
 
+
 @app.get("/history")
 async def history():
     return await get_all_predictions()
 
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)

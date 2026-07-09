@@ -1,0 +1,38 @@
+# Git and env
+.git
+.gitignore
+.env
+.env.*
+
+# Python
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Node / frontend (not needed for backend image)
+frontend/
+node_modules/
+
+# Runtime artifacts
+*.db
+backend/predictions.db
+
+# Datasets (training is local-only)
+real/
+fake/
+data/
+
+# Model checkpoints (mount or copy separately if needed)
+backend/weights/*.pth
+backend/weights/*.pt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

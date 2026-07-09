@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 
 export default function HistoryTable() {
@@ -13,7 +14,7 @@ export default function HistoryTable() {
 
   const fetchHistory = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/history');
+      const res = await axios.get(`${API_BASE_URL}/history`);
       setHistory(res.data);
     } catch (err) {
       console.error(err);

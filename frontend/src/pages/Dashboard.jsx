@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import { Activity, Play, Terminal, Target, AlertTriangle } from 'lucide-react';
 import HistoryTable from '../components/HistoryTable';
 
@@ -28,7 +29,7 @@ export default function Dashboard() {
 
   const fetchMetrics = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/evaluate');
+      const res = await axios.get(`${API_BASE_URL}/evaluate`);
       setMetrics(res.data);
       setMetricsError(null);
     } catch (err) {
@@ -41,12 +42,21 @@ export default function Dashboard() {
     setIsTraining(true);
     setLogs([{ type: 'info', msg: 'Starting training job...' }]);
 
-    fetch('http://localhost:8000/train', {
+    fetch(`${API_BASE_URL}/train`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ epochs, batch_size: batchSize, learning_rate: learningRate })
     })
     .then(response => {
+      if (!response.ok) {
+        setLogs(prev => [...prev, {
+          type: 'error',
+          msg: `Failed to start training: server returned HTTP ${response.status}`,
+        }]);
+        setIsTraining(false);
+        return;
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
 
@@ -65,7 +75,11 @@ export default function Dashboard() {
                 const data = JSON.parse(dataStr);
                 
                 if (data.error) {
-                  setLogs(prev => [...prev, { type: 'error', msg: `Error: ${data.error}` }]);
+                  const isDeployedMessage = data.error.includes('not available in this deployed environment');
+                  setLogs(prev => [...prev, {
+                    type: isDeployedMessage ? 'warning' : 'error',
+                    msg: isDeployedMessage ? data.error : `Error: ${data.error}`,
+                  }]);
                   setIsTraining(false);
                   return;
                 } else if (data.message) {
@@ -202,6 +216,7 @@ export default function Dashboard() {
                 logs.map((l, i) => (
                   <p key={i} className={`
                     ${l.type === 'error' ? 'text-red-400' : ''}
+                    ${l.type === 'warning' ? 'text-yellow-400' : ''}
                     ${l.type === 'success' ? 'text-green-400' : ''}
                     ${l.type === 'info' ? 'text-blue-400' : ''}
                     ${l.type === 'log' ? 'text-gray-300' : ''}

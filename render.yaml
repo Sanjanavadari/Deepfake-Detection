@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: deepguard-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: DATABASE_URL
+        value: /tmp/predictions.db
+      - key: LOG_LEVEL
+        value: INFO
+      - key: MODEL_PATH
+        value: /app/backend/weights/best_model.pth

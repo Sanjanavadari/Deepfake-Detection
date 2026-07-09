@@ -19,12 +19,36 @@ WEIGHTS_DIR = os.path.join(os.path.dirname(__file__), 'weights')
 os.makedirs(WEIGHTS_DIR, exist_ok=True)
 BEST_MODEL_PATH = os.path.join(WEIGHTS_DIR, 'best_model.pth')
 
+DEPLOYED_TRAINING_ERROR = (
+    "Training requires local dataset folders (real/ and fake/) which are not "
+    "available in this deployed environment. Please run training locally."
+)
+
+
+def _dataset_dirs_missing(real_dir: str, fake_dir: str) -> bool:
+    return not os.path.isdir(real_dir) or not os.path.isdir(fake_dir)
+
+
 async def train_model(epochs: int, batch_size: int, learning_rate: float):
     """
     Async generator that trains the model and yields SSE formatted logs.
     """
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    real_dir = os.path.join(project_root, 'real')
+    fake_dir = os.path.join(project_root, 'fake')
+
+    if _dataset_dirs_missing(real_dir, fake_dir):
+        yield f"data: {json.dumps({'error': DEPLOYED_TRAINING_ERROR})}\n\n"
+        return
+
+    dataset = DeepfakeDataset(real_dir, fake_dir, transform=None)
+    dataset_size = len(dataset)
+    if dataset_size == 0:
+        yield f"data: {json.dumps({'error': 'Dataset is empty. Ensure real/ and fake/ contain images.'})}\n\n"
+        return
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    
+
     # 1. Initialize model
     model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
     model.to(device)
@@ -50,15 +74,6 @@ async def train_model(epochs: int, batch_size: int, learning_rate: float):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    # 4. Load Dataset
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-    dataset = DeepfakeDataset(os.path.join(project_root, 'real'), os.path.join(project_root, 'fake'), transform=None)
-    
-    dataset_size = len(dataset)
-    if dataset_size == 0:
-        yield f"data: {json.dumps({'error': 'Dataset is empty. Ensure real/ and fake/ contain images.'})}\n\n"
-        return
-
     # Split 80/10/10 (Train/Val/Test)
     train_size = int(0.8 * dataset_size)
     val_size = int(0.1 * dataset_size)
