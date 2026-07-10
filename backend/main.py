@@ -1,3 +1,4 @@
+import gc
 import io
 import logging
 import os
@@ -43,6 +44,9 @@ weights_loaded = False
 
 @app.on_event("startup")
 async def startup_event():
+    # Limit intra-op threads before loading models (Render free tier CPU/RAM)
+    torch.set_num_threads(1)
+
     await init_db()
 
     global model, weights_loaded
@@ -79,6 +83,7 @@ async def health():
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     contents = await file.read()
+    image = None
 
     is_video = file.filename.lower().endswith(('.mp4', '.avi', '.mov'))
 
@@ -87,6 +92,10 @@ async def predict(file: UploadFile = File(...)):
             result = predict_video(model, contents, device)
         else:
             image = Image.open(io.BytesIO(contents)).convert("RGB")
+            contents = None  # release raw upload bytes ASAP
+            # Drop full-res pixels before MTCNN / model (model input is 224x224)
+            if image.size != (224, 224):
+                image = image.resize((224, 224), Image.BILINEAR)
             label, confidence, grad_cam_b64, prob = predict_single_frame(model, image, device)
             result = {
                 "label": label,
@@ -109,6 +118,9 @@ async def predict(file: UploadFile = File(...)):
     except Exception:
         logger.exception("Prediction failed for file %s", file.filename)
         raise HTTPException(status_code=500, detail="An error occurred during prediction.")
+    finally:
+        del contents, image
+        gc.collect()
 
 
 class TrainParams(BaseModel):
@@ -144,4 +156,4 @@ async def history():
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT, workers=1)

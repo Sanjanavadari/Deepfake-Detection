@@ -11,25 +11,36 @@ from backend.utils.preprocess import preprocess_image
 from backend.utils.grad_cam import generate_grad_cam_base64
 
 
+# Model / MTCNN face crop size (see backend/utils/preprocess.py)
+_MODEL_INPUT_SIZE = (224, 224)
+
+
 def predict_single_frame(model, image: Image.Image, device):
     """
     Runs prediction on a single PIL image.
     Returns label ("Real" or "Fake"), confidence, and grad_cam base64 string.
     """
+    # Downscale ASAP so full-resolution uploads do not linger in memory
+    if image.size != _MODEL_INPUT_SIZE:
+        image = image.resize(_MODEL_INPUT_SIZE, Image.BILINEAR)
+
     input_tensor = preprocess_image(image).to(device)
 
     orig_np = np.array(image.convert('RGB'))
 
-    with torch.no_grad():
+    # Forward pass only — Grad-CAM below needs gradients enabled
+    with torch.inference_mode():
         output = model(input_tensor)
         prob = torch.sigmoid(output).item()
 
     confidence = prob if prob >= 0.5 else 1 - prob
     label = "Fake" if prob >= 0.5 else "Real"
 
+    # Intentionally outside inference_mode: Grad-CAM runs a backward pass
     grad_cam_b64 = generate_grad_cam_base64(model, input_tensor, orig_np)
 
     del input_tensor, output, orig_np
+    gc.collect()
 
     return label, confidence, grad_cam_b64, prob
 
