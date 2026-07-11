@@ -20,7 +20,7 @@ def evaluate_model():
         
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
-    model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
+    model = HybridDeepfakeDetector(cnn_model_name='efficientnet_b0', num_classes=1)
     model.load_state_dict(torch.load(best_model_path, map_location=device))
     model.to(device)
     model.eval()

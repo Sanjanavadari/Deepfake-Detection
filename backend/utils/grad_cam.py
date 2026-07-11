@@ -56,9 +56,9 @@ def generate_grad_cam_base64(model, input_tensor, original_image_np):
     Generates a Grad-CAM heatmap and overlays it on the original image.
     Returns base64 encoded PNG string.
     """
-    # Specifically for efficientnetv2_rw_s in timm
-    # The last conv block is usually model.backbone.conv_head or model.backbone.blocks[-1]
-    # We will try to hook into backbone.conv_head if it exists, else blocks[-1]
+    # EfficientNet-B0 (timm): hook conv_head — the final 1x1 Conv2d (320 -> 1280)
+    # immediately before bn2 / global pooling. This is the last spatial feature map
+    # and the correct Grad-CAM target (equivalent role to EfficientNetV2's conv_head).
     if hasattr(model.backbone, 'conv_head'):
         target_layer = model.backbone.conv_head
     elif hasattr(model.backbone, 'blocks'):

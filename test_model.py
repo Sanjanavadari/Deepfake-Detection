@@ -5,10 +5,19 @@ import torch
 from src.model import HybridDeepfakeDetector
 
 def test_model_architecture():
-    print("Initializing Hybrid CNN + Transformer Model (EfficientNetV2)...")
+    print("Initializing Hybrid CNN Model (EfficientNet-B0)...")
     try:
-        model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
+        model = HybridDeepfakeDetector(cnn_model_name='efficientnet_b0', num_classes=1)
         model.eval()
+
+        print(f"Backbone num_features: {model.backbone.num_features}")
+        print(f"FC in_features: {model.fc.in_features}")
+        assert model.fc.in_features == model.backbone.num_features, (
+            "FC layer must match backbone.num_features"
+        )
+        assert model.backbone.num_features == 1280, (
+            "efficientnet_b0 should expose 1280 features"
+        )
         
         # Create a dummy batch of 2 images [BatchSize, Channels, Height, Width]
         print("Creating dummy tensor of shape [2, 3, 224, 224]...")

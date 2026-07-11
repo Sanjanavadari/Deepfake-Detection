@@ -50,7 +50,7 @@ async def train_model(epochs: int, batch_size: int, learning_rate: float):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # 1. Initialize model
-    model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
+    model = HybridDeepfakeDetector(cnn_model_name='efficientnet_b0', num_classes=1)
     model.to(device)
     
     # 2. Setup loss, optimizer, scheduler

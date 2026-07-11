@@ -50,20 +50,20 @@ async def startup_event():
     await init_db()
 
     global model, weights_loaded
-    model = HybridDeepfakeDetector(cnn_model_name='efficientnetv2_rw_s', num_classes=1)
+    model = HybridDeepfakeDetector(cnn_model_name='efficientnet_b0', num_classes=1)
 
     if os.path.exists(MODEL_PATH):
         model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
         weights_loaded = True
         logger.info("Loaded trained weights from %s", MODEL_PATH)
     else:
-        # No best_model.pth: uses timm pretrained EfficientNetV2 backbone + randomly
+        # No best_model.pth: uses timm pretrained EfficientNet-B0 backbone + randomly
         # initialized FC head. Predictions will NOT be meaningful until a trained
         # best_model.pth is placed in backend/weights/.
         weights_loaded = False
         logger.warning(
-            "No trained weights at %s. Using pretrained backbone with untrained FC head. "
-            "Predictions will not be meaningful until best_model.pth is added.",
+            "No trained weights at %s. Using pretrained EfficientNet-B0 backbone with "
+            "untrained FC head. Predictions will not be meaningful until best_model.pth is added.",
             MODEL_PATH,
         )
 
