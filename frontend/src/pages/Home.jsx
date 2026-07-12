@@ -28,7 +28,16 @@ export default function Home() {
       });
       setResult(res.data);
     } catch (err) {
-      setError(err.response?.data?.detail || "An error occurred during analysis.");
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+      // Prefer the backend's 503 OOM message when present; otherwise keep generic fallback
+      if (status === 503 && typeof detail === 'string') {
+        setError(detail);
+      } else if (typeof detail === 'string') {
+        setError(detail);
+      } else {
+        setError("An error occurred during analysis.");
+      }
     } finally {
       setLoading(false);
     }

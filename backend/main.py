@@ -17,7 +17,7 @@ from src.model import HybridDeepfakeDetector
 
 from backend.config import MODEL_PATH, PORT, LOG_LEVEL, get_allowed_origins
 from backend.database import init_db, save_prediction, get_all_predictions
-from backend.predict import predict_single_frame, predict_video
+from backend.predict import OOM_DETAIL, is_oom_error, predict_single_frame, predict_video
 from backend.evaluate import evaluate_model
 from backend.train import train_model
 
@@ -115,6 +115,12 @@ async def predict(file: UploadFile = File(...)):
         raise
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
+    except (MemoryError, RuntimeError) as e:
+        if is_oom_error(e):
+            logger.error("OOM during prediction for file %s: %s", file.filename, e)
+            raise HTTPException(status_code=503, detail=OOM_DETAIL)
+        logger.exception("Prediction failed for file %s", file.filename)
+        raise HTTPException(status_code=500, detail="An error occurred during prediction.")
     except Exception:
         logger.exception("Prediction failed for file %s", file.filename)
         raise HTTPException(status_code=500, detail="An error occurred during prediction.")
