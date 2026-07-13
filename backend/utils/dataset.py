@@ -1,3 +1,4 @@
+# NOTE: MTCNN face detection is currently disabled — see marked block below for details.
 import os
 from PIL import Image
 from torch.utils.data import Dataset
@@ -30,14 +31,24 @@ class DeepfakeDataset(Dataset):
         img_path, label = self.samples[idx]
         image = Image.open(img_path).convert('RGB')
         
-        # We apply MTCNN to crop face, if no face we just use the raw image resized.
-        # For training, it's safer to use images that already have faces.
-        face = get_mtcnn()(image)
-        if face is None:
-            # Fallback if no face detected
-            face = transforms.ToTensor()(image.resize((224, 224)))
-        else:
-            face = face / 255.0
+        # === MTCNN FACE DETECTION — DISABLED FOR RENDER FREE TIER (512MB) ===
+        # Re-enable by uncommenting this block and removing the bypass below.
+        # Disabled on: 2026-07-13. Reason: MTCNN adds ~100-200MB resident
+        # memory, pushing the app over Render's free-tier limit during prediction.
+        # To restore: comment out the bypass block and uncomment this section.
+        #
+        # # We apply MTCNN to crop face, if no face we just use the raw image resized.
+        # # For training, it's safer to use images that already have faces.
+        # face = get_mtcnn()(image)
+        # if face is None:
+        #     # Fallback if no face detected
+        #     face = transforms.ToTensor()(image.resize((224, 224)))
+        # else:
+        #     face = face / 255.0
+        # === END MTCNN BLOCK ===
+
+        # --- BYPASS: pass image through without face cropping ---
+        face = transforms.ToTensor()(image.resize((224, 224), Image.BILINEAR))
 
         if self.transform:
             face = self.transform(face)

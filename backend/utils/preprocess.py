@@ -1,3 +1,4 @@
+# NOTE: MTCNN face detection is currently disabled — see marked block below for details.
 import torch
 from torchvision import transforms
 from facenet_pytorch import MTCNN
@@ -29,15 +30,28 @@ def get_mtcnn() -> MTCNN:
 
 def preprocess_image(image: Image.Image) -> torch.Tensor:
     """
-    Detects face, crops, resizes to 224x224, and normalizes it.
+    Resizes to 224x224 and normalizes it (MTCNN face crop currently disabled).
     Input: PIL Image (RGB)
     Output: torch.Tensor of shape [1, 3, 224, 224]
     """
-    face_tensor = get_mtcnn()(image)
+    # === MTCNN FACE DETECTION — DISABLED FOR RENDER FREE TIER (512MB) ===
+    # Re-enable by uncommenting this block and removing the bypass below.
+    # Disabled on: 2026-07-13. Reason: MTCNN adds ~100-200MB resident
+    # memory, pushing the app over Render's free-tier limit during prediction.
+    # To restore: comment out the bypass block and uncomment this section.
+    #
+    # face_tensor = get_mtcnn()(image)
+    #
+    # if face_tensor is None:
+    #     raise HTTPException(status_code=422, detail="No face detected in image")
+    #
+    # face_tensor = face_tensor / 255.0
+    # face_tensor = normalize(face_tensor)
+    # return face_tensor.unsqueeze(0)
+    # === END MTCNN BLOCK ===
 
-    if face_tensor is None:
-        raise HTTPException(status_code=422, detail="No face detected in image")
-
-    face_tensor = face_tensor / 255.0
+    # --- BYPASS: pass image through without face cropping ---
+    # Resize to model input size and normalize; no MTCNN allocation.
+    face_tensor = transforms.ToTensor()(image.resize((224, 224), Image.BILINEAR))
     face_tensor = normalize(face_tensor)
     return face_tensor.unsqueeze(0)
