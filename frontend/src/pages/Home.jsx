@@ -13,6 +13,21 @@ export default function Home() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
+  const resetScan = () => {
+    setFile(null);
+    setResult(null);
+    setError(null);
+    setLoading(false);
+  };
+
+  const handleFileChange = (nextFile) => {
+    setFile(nextFile);
+    // New selection or clear — drop prior scan so the UI never references a missing file
+    setResult(null);
+    setError(null);
+    setLoading(false);
+  };
+
   const handleAnalyze = async () => {
     if (!file) return;
     setLoading(true);
@@ -43,6 +58,8 @@ export default function Home() {
     }
   };
 
+  const isVideo = Boolean(file?.type?.startsWith('video/'));
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="text-center space-y-4">
@@ -56,7 +73,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
-          <UploadCard file={file} setFile={setFile} />
+          <UploadCard file={file} setFile={handleFileChange} onClear={resetScan} />
           
           <button
             onClick={handleAnalyze}
@@ -94,15 +111,15 @@ export default function Home() {
             </div>
           )}
 
-          {result && !loading && (
+          {result && file && !loading && (
             <div className="space-y-6">
               <ResultDisplay result={result} />
               
-              {!file.type.startsWith('video/') && result.grad_cam_image && (
+              {!isVideo && result.grad_cam_image && (
                 <GradCamViewer originalFile={file} gradCamBase64={result.grad_cam_image} />
               )}
 
-              {file.type.startsWith('video/') && result.frame_results && (
+              {isVideo && result.frame_results && (
                 <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
                    <h4 className="text-sm font-semibold text-gray-300 mb-3">Frame Timeline (1 fps)</h4>
                    <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">

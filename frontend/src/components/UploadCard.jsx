@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { UploadCloud, FileVideo, Image as ImageIcon, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export default function UploadCard({ file, setFile }) {
+export default function UploadCard({ file, setFile, onClear }) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -32,7 +32,11 @@ export default function UploadCard({ file, setFile }) {
 
   const clearFile = (e) => {
     e.stopPropagation();
-    setFile(null);
+    if (onClear) {
+      onClear();
+    } else {
+      setFile(null);
+    }
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
