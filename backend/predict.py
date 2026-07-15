@@ -48,10 +48,14 @@ def predict_single_frame(model, image: Image.Image, device):
         with torch.inference_mode():
             output = model(input_tensor)
             # Dataset/train convention: Real=0, Fake=1 → high sigmoid = Fake.
-            # Current best_model.pth was learned with the opposite polarity
-            # (high sigmoid ≈ Real). Flip once so displayed labels match
-            # training's Real/Fake meaning without changing dataset.py.
             raw_prob = torch.sigmoid(output).item()
+            # NOTE: This flip (1.0 - raw_prob) corrects a polarity mismatch found in the
+            # best_model.pth trained on 2026-07-14 (FaceForensics++, EfficientNet-B0).
+            # If you retrain and predictions come out INVERTED again (real photos → "Fake"),
+            # keep this flip. If a new checkpoint predicts correctly WITHOUT this flip,
+            # REMOVE this line — otherwise predictions will be inverted again.
+            # Always test with a known real and known fake sample after any retrain
+            # before trusting this flip either way.
             prob = 1.0 - raw_prob  # P(Fake), aligned to Real=0 / Fake=1
 
         confidence = prob if prob >= 0.5 else 1 - prob
