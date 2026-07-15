@@ -47,7 +47,12 @@ def predict_single_frame(model, image: Image.Image, device):
         # Forward pass only — Grad-CAM below needs gradients enabled
         with torch.inference_mode():
             output = model(input_tensor)
-            prob = torch.sigmoid(output).item()
+            # Dataset/train convention: Real=0, Fake=1 → high sigmoid = Fake.
+            # Current best_model.pth was learned with the opposite polarity
+            # (high sigmoid ≈ Real). Flip once so displayed labels match
+            # training's Real/Fake meaning without changing dataset.py.
+            raw_prob = torch.sigmoid(output).item()
+            prob = 1.0 - raw_prob  # P(Fake), aligned to Real=0 / Fake=1
 
         confidence = prob if prob >= 0.5 else 1 - prob
         label = "Fake" if prob >= 0.5 else "Real"
