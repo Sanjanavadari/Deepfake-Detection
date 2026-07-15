@@ -30,6 +30,7 @@ data/
 # Model checkpoints (mount or copy separately if needed)
 backend/weights/*.pth
 backend/weights/*.pt
+!backend/weights/best_model.pth
 
 # OS / editor
 .DS_Store
