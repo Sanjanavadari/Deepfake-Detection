@@ -18,6 +18,7 @@ from src.model import HybridDeepfakeDetector
 from backend.config import MODEL_PATH, PORT, LOG_LEVEL, get_allowed_origins
 from backend.database import init_db, save_prediction, get_all_predictions
 from backend.predict import OOM_DETAIL, is_oom_error, predict_single_frame, predict_video
+from backend.utils.file_validation import read_and_validate_upload
 from backend.evaluate import evaluate_model
 from backend.train import train_model
 
@@ -82,13 +83,11 @@ async def health():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    contents = await file.read()
+    contents, media_kind = await read_and_validate_upload(file)
     image = None
 
-    is_video = file.filename.lower().endswith(('.mp4', '.avi', '.mov'))
-
     try:
-        if is_video:
+        if media_kind == "video":
             result = predict_video(model, contents, device)
         else:
             image = Image.open(io.BytesIO(contents)).convert("RGB")

@@ -7,6 +7,45 @@ import GradCamViewer from '../components/GradCamViewer';
 import { Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+// Keep in sync with backend/config.py defaults (MAX_IMAGE_SIZE_MB, MAX_VIDEO_SIZE_MB)
+const MAX_IMAGE_SIZE_MB = Number(import.meta.env.VITE_MAX_IMAGE_SIZE_MB ?? 10);
+const MAX_VIDEO_SIZE_MB = Number(import.meta.env.VITE_MAX_VIDEO_SIZE_MB ?? 50);
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024;
+
+const VIDEO_EXTENSIONS = /\.(mp4|avi|mov)$/i;
+const IMAGE_EXTENSIONS = /\.(jpe?g|png|gif|webp)$/i;
+
+function getUploadKind(file) {
+  const videoHint = file.type?.startsWith('video/') || VIDEO_EXTENSIONS.test(file.name);
+  const imageHint = file.type?.startsWith('image/') || IMAGE_EXTENSIONS.test(file.name);
+
+  if (videoHint && !imageHint) return 'video';
+  if (imageHint && !videoHint) return 'image';
+  if (videoHint) return 'video';
+  if (imageHint) return 'image';
+  return null;
+}
+
+function validateUploadFile(file) {
+  if (!file) return null;
+
+  const kind = getUploadKind(file);
+  if (!kind) {
+    return 'Unsupported file type. Please upload a JPG, PNG, GIF, or WebP image, or an MP4, AVI, or MOV video.';
+  }
+
+  const maxBytes = kind === 'video' ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+  const maxMb = kind === 'video' ? MAX_VIDEO_SIZE_MB : MAX_IMAGE_SIZE_MB;
+
+  if (file.size > maxBytes) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    return `This ${kind} is too large (${sizeMb} MB). The maximum allowed size is ${maxMb} MB.`;
+  }
+
+  return null;
+}
+
 export default function Home() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,6 +60,23 @@ export default function Home() {
   };
 
   const handleFileChange = (nextFile) => {
+    if (!nextFile) {
+      setFile(null);
+      setResult(null);
+      setError(null);
+      setLoading(false);
+      return;
+    }
+
+    const validationError = validateUploadFile(nextFile);
+    if (validationError) {
+      setFile(null);
+      setResult(null);
+      setError(validationError);
+      setLoading(false);
+      return;
+    }
+
     setFile(nextFile);
     // New selection or clear — drop prior scan so the UI never references a missing file
     setResult(null);
@@ -30,6 +86,13 @@ export default function Home() {
 
   const handleAnalyze = async () => {
     if (!file) return;
+
+    const validationError = validateUploadFile(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setResult(null);
