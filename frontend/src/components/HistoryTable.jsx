@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../config';
+import { getApiErrorMessage } from '../utils/apiErrors';
 import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
 
 export default function HistoryTable() {
   const [history, setHistory] = useState([]);
+  const [historyError, setHistoryError] = useState(null);
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -16,8 +18,9 @@ export default function HistoryTable() {
     try {
       const res = await axios.get(apiUrl('/history'));
       setHistory(res.data);
+      setHistoryError(null);
     } catch (err) {
-      console.error(err);
+      setHistoryError(getApiErrorMessage(err, 'Failed to load prediction history.'));
     }
   };
 
@@ -32,6 +35,9 @@ export default function HistoryTable() {
       </div>
       
       <div className="overflow-x-auto">
+        {historyError ? (
+          <div className="px-6 py-8 text-center text-yellow-500 text-sm">{historyError}</div>
+        ) : (
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-900/50 text-xs uppercase text-gray-400">
             <tr>
@@ -66,6 +72,7 @@ export default function HistoryTable() {
             )}
           </tbody>
         </table>
+        )}
       </div>
 
       {/* Pagination */}

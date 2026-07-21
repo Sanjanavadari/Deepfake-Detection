@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../config';
+import { getApiErrorMessage } from '../utils/apiErrors';
 import UploadCard from '../components/UploadCard';
 import ResultDisplay from '../components/ResultDisplay';
 import GradCamViewer from '../components/GradCamViewer';
@@ -106,16 +107,7 @@ export default function Home() {
       });
       setResult(res.data);
     } catch (err) {
-      const status = err.response?.status;
-      const detail = err.response?.data?.detail;
-      // Prefer the backend's 503 OOM message when present; otherwise keep generic fallback
-      if (status === 503 && typeof detail === 'string') {
-        setError(detail);
-      } else if (typeof detail === 'string') {
-        setError(detail);
-      } else {
-        setError("An error occurred during analysis.");
-      }
+      setError(getApiErrorMessage(err, 'An error occurred during analysis.'));
     } finally {
       setLoading(false);
     }

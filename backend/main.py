@@ -6,16 +6,28 @@ import sys
 
 import torch
 import uvicorn
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, Request, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from PIL import Image
 from pydantic import BaseModel
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.model import HybridDeepfakeDetector
 
-from backend.config import MODEL_PATH, PORT, LOG_LEVEL, get_allowed_origins
+from backend.config import (
+    MODEL_PATH,
+    PORT,
+    LOG_LEVEL,
+    RATE_LIMIT_EVALUATE,
+    RATE_LIMIT_HISTORY,
+    RATE_LIMIT_PREDICT,
+    RATE_LIMIT_TRAIN,
+    get_allowed_origins,
+)
+from backend.rate_limit import limiter, rate_limit_exceeded_handler
 from backend.database import init_db, save_prediction, get_all_predictions
 from backend.predict import OOM_DETAIL, is_oom_error, predict_single_frame, predict_video
 from backend.utils.file_validation import read_and_validate_upload
@@ -29,7 +41,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
+app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_allowed_origins(),
@@ -82,7 +97,8 @@ async def health():
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+@limiter.limit(RATE_LIMIT_PREDICT)
+async def predict(request: Request, file: UploadFile = File(...)):
     contents, media_kind = await read_and_validate_upload(file)
     image = None
 
@@ -135,7 +151,8 @@ class TrainParams(BaseModel):
 
 
 @app.post("/train")
-async def train(params: TrainParams):
+@limiter.limit(RATE_LIMIT_TRAIN)
+async def train(request: Request, params: TrainParams):
     return StreamingResponse(
         train_model(params.epochs, params.batch_size, params.learning_rate),
         media_type="text/event-stream",
@@ -148,7 +165,8 @@ async def train(params: TrainParams):
 
 
 @app.get("/evaluate")
-async def evaluate():
+@limiter.limit(RATE_LIMIT_EVALUATE)
+async def evaluate(request: Request):
     metrics = evaluate_model()
     if "error" in metrics:
         raise HTTPException(status_code=400, detail=metrics["error"])
@@ -156,7 +174,8 @@ async def evaluate():
 
 
 @app.get("/history")
-async def history():
+@limiter.limit(RATE_LIMIT_HISTORY)
+async def history(request: Request):
     return await get_all_predictions()
 
 

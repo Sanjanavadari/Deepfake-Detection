@@ -25,3 +25,9 @@ MAX_IMAGE_SIZE_MB = int(os.getenv("MAX_IMAGE_SIZE_MB", "10"))
 MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "50"))
 MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024
 MAX_VIDEO_SIZE_BYTES = MAX_VIDEO_SIZE_MB * 1024 * 1024
+
+# Per-IP rate limits (slowapi format, e.g. "10/minute")
+RATE_LIMIT_PREDICT = os.getenv("RATE_LIMIT_PREDICT", "10/minute")
+RATE_LIMIT_TRAIN = os.getenv("RATE_LIMIT_TRAIN", "2/minute")
+RATE_LIMIT_EVALUATE = os.getenv("RATE_LIMIT_EVALUATE", "10/minute")
+RATE_LIMIT_HISTORY = os.getenv("RATE_LIMIT_HISTORY", "30/minute")

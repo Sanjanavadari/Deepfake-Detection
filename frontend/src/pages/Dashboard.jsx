@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../config';
+import { getApiErrorMessage } from '../utils/apiErrors';
 import { Activity, AlertTriangle, Info } from 'lucide-react';
 import HistoryTable from '../components/HistoryTable';
 
@@ -18,7 +19,9 @@ export default function Dashboard() {
       setMetrics(res.data);
       setMetricsError(null);
     } catch (err) {
-      setMetricsError(err.response?.data?.detail || "Failed to load metrics. The model may not be trained yet.");
+      setMetricsError(
+        getApiErrorMessage(err, 'Failed to load metrics. The model may not be trained yet.')
+      );
     }
   };
 
