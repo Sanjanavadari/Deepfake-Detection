@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -19,8 +20,19 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from src.model import HybridDeepfakeDetector
 from backend.utils.dataset import DeepfakeDataset
 
+logger = logging.getLogger(__name__)
+
 DEPLOYED_EVAL_ERROR = (
     "Evaluation requires local validation data — not available in this deployed environment"
+)
+
+MODEL_NOT_TRAINED_ERROR = (
+    "Model not trained yet. Please train the model before evaluating."
+)
+
+INSUFFICIENT_CLASS_DIVERSITY_ERROR = (
+    "Validation split contains only one class; cannot compute AUC-ROC. "
+    "Add more real and fake images and retry."
 )
 
 # Must match predict.py polarity handling for the current checkpoint
@@ -36,7 +48,7 @@ def evaluate_model():
     best_model_path = os.path.join(os.path.dirname(__file__), 'weights', 'best_model.pth')
 
     if not os.path.exists(best_model_path):
-        return {"error": "Model not trained yet. best_model.pth missing."}
+        return {"error": MODEL_NOT_TRAINED_ERROR}
 
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     real_dir = os.path.join(project_root, 'real')
@@ -88,12 +100,7 @@ def evaluate_model():
 
     # Need both classes present for a defined AUC-ROC
     if len(np.unique(y_true)) < 2:
-        return {
-            "error": (
-                "Validation split contains only one class; cannot compute AUC-ROC. "
-                "Add more real and fake images and retry."
-            )
-        }
+        return {"error": INSUFFICIENT_CLASS_DIVERSITY_ERROR}
 
     accuracy = float(accuracy_score(y_true, y_pred))
     precision = float(precision_score(y_true, y_pred, zero_division=0))

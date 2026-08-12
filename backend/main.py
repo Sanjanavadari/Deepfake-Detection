@@ -29,7 +29,13 @@ from backend.config import (
 )
 from backend.rate_limit import limiter, rate_limit_exceeded_handler
 from backend.database import init_db, save_prediction, get_all_predictions
-from backend.predict import OOM_DETAIL, is_oom_error, predict_single_frame, predict_video
+from backend.predict import (
+    NO_FACES_DETECTED_DETAIL,
+    OOM_DETAIL,
+    is_oom_error,
+    predict_single_frame,
+    predict_video,
+)
 from backend.utils.file_validation import read_and_validate_upload
 from backend.evaluate import evaluate_model
 from backend.train import train_model
@@ -129,7 +135,10 @@ async def predict(request: Request, file: UploadFile = File(...)):
     except HTTPException:
         raise
     except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
+        if str(e) == NO_FACES_DETECTED_DETAIL:
+            raise HTTPException(status_code=422, detail=NO_FACES_DETECTED_DETAIL)
+        logger.exception("Invalid prediction input for file %s", file.filename)
+        raise HTTPException(status_code=422, detail="Invalid input for prediction.")
     except (MemoryError, RuntimeError) as e:
         if is_oom_error(e):
             logger.error("OOM during prediction for file %s: %s", file.filename, e)
@@ -167,7 +176,11 @@ async def train(request: Request, params: TrainParams):
 @app.get("/evaluate")
 @limiter.limit(RATE_LIMIT_EVALUATE)
 async def evaluate(request: Request):
-    metrics = evaluate_model()
+    try:
+        metrics = evaluate_model()
+    except Exception:
+        logger.exception("Evaluation failed")
+        raise HTTPException(status_code=500, detail="An error occurred during evaluation.")
     if "error" in metrics:
         raise HTTPException(status_code=400, detail=metrics["error"])
     return metrics
@@ -176,7 +189,11 @@ async def evaluate(request: Request):
 @app.get("/history")
 @limiter.limit(RATE_LIMIT_HISTORY)
 async def history(request: Request):
-    return await get_all_predictions()
+    try:
+        return await get_all_predictions()
+    except Exception:
+        logger.exception("Failed to fetch prediction history")
+        raise HTTPException(status_code=500, detail="An error occurred while fetching prediction history.")
 
 
 if __name__ == "__main__":

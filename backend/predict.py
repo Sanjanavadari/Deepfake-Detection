@@ -1,4 +1,5 @@
 import gc
+import logging
 import os
 import tempfile
 
@@ -14,11 +15,15 @@ from backend.utils.grad_cam import generate_grad_cam_base64
 # Model / MTCNN face crop size (see backend/utils/preprocess.py)
 _MODEL_INPUT_SIZE = (224, 224)
 
+logger = logging.getLogger(__name__)
+
 OOM_DETAIL = (
     "The server ran out of memory processing this request. "
     "This app is running on a memory-constrained free tier — try a smaller image, "
     "or this may be a known limitation of the current hosting plan."
 )
+
+NO_FACES_DETECTED_DETAIL = "No faces detected in any video frames."
 
 
 def is_oom_error(exc: BaseException) -> bool:
@@ -72,6 +77,7 @@ def predict_single_frame(model, image: Image.Image, device):
         if is_oom_error(e):
             gc.collect()
             raise MemoryError(OOM_DETAIL) from e
+        logger.exception("Single-frame prediction failed")
         raise
 
 
@@ -129,7 +135,7 @@ def predict_video(model, video_bytes: bytes, device):
             os.remove(tmp_path)
 
         if not frame_results:
-            raise ValueError("No faces detected in any video frames.")
+            raise ValueError(NO_FACES_DETECTED_DETAIL)
 
         avg_prob = sum(frame_probs) / len(frame_probs)
         final_label = "Fake" if avg_prob >= 0.5 else "Real"
@@ -155,4 +161,5 @@ def predict_video(model, video_bytes: bytes, device):
         if is_oom_error(e):
             gc.collect()
             raise MemoryError(OOM_DETAIL) from e
+        logger.exception("Video prediction failed")
         raise
