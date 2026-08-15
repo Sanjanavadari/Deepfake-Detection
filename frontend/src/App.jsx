@@ -1,8 +1,16 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import { Shield, LayoutDashboard } from 'lucide-react';
+
+// No real auth — this just gates the landing experience so /login shows first each session.
+export const SESSION_KEY = 'deepguard_entered';
+
+function RequireEntry({ children }) {
+  const entered = sessionStorage.getItem(SESSION_KEY) === 'true';
+  return entered ? children : <Navigate to="/login" replace />;
+}
 
 function AppLayout() {
   const location = useLocation();
@@ -36,8 +44,8 @@ function AppLayout() {
       {/* Main Content */}
       <main className={isLogin ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/" element={<RequireEntry><Home /></RequireEntry>} />
+          <Route path="/dashboard" element={<RequireEntry><Dashboard /></RequireEntry>} />
           <Route path="/login" element={<Login />} />
         </Routes>
       </main>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Mail, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SESSION_KEY } from '../App';
 
 // Demo/portfolio project — this form does not perform real authentication.
 // Submitting (or continuing as guest) simply routes to the Detector page.
@@ -10,9 +11,14 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  const enterApp = () => {
+    sessionStorage.setItem(SESSION_KEY, 'true');
+    navigate('/');
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    navigate('/');
+    enterApp();
   };
 
   return (
@@ -88,7 +94,7 @@ export default function Login() {
           </div>
 
           <button
-            onClick={() => navigate('/')}
+            onClick={enterApp}
             className="w-full text-center text-sm font-medium text-gray-400 hover:text-white transition-colors"
           >
             Continue as Guest
