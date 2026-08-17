@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../config';
 import { getApiErrorMessage } from '../utils/apiErrors';
@@ -52,6 +52,17 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [showColdStartHint, setShowColdStartHint] = useState(false);
+
+  // Render backend free tier can cold-start; only mention it once the wait feels long.
+  useEffect(() => {
+    if (!loading) {
+      setShowColdStartHint(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowColdStartHint(true), 5000);
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const resetScan = () => {
     setFile(null);
@@ -160,9 +171,21 @@ export default function Home() {
           )}
           
           {loading && (
-            <div className="h-full min-h-[300px] border border-gray-800 rounded-2xl flex flex-col items-center justify-center bg-gray-900/30 space-y-4">
+            <div className="h-full min-h-[300px] border border-gray-800 rounded-2xl flex flex-col items-center justify-center bg-gray-900/30 space-y-4 p-6">
                <Loader2 className="w-10 h-10 text-accent animate-spin" />
                <p className="text-gray-400 animate-pulse">Running inference...</p>
+
+               <div className="w-full max-w-xs space-y-3 animate-pulse">
+                 <div className="h-4 bg-gray-700/50 rounded-lg w-3/4 mx-auto"></div>
+                 <div className="h-4 bg-gray-700/50 rounded-lg w-1/2 mx-auto"></div>
+                 <div className="h-20 bg-gray-700/50 rounded-xl"></div>
+               </div>
+
+               {showColdStartHint && (
+                 <p className="text-xs text-gray-500 text-center max-w-xs">
+                   Waking up the server — this may take up to a minute on the first request.
+                 </p>
+               )}
             </div>
           )}
 
