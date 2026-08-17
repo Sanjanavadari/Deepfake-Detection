@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { apiUrl } from '../config';
 import { getApiErrorMessage } from '../utils/apiErrors';
-import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle } from 'lucide-react';
+import { Clock, ChevronLeft, ChevronRight, CheckCircle, XCircle, Image as ImageIcon, AlertTriangle } from 'lucide-react';
+
+const SKELETON_ROWS = 5;
 
 export default function HistoryTable() {
   const [history, setHistory] = useState([]);
   const [historyError, setHistoryError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const rowsPerPage = 10;
 
@@ -15,12 +18,16 @@ export default function HistoryTable() {
   }, []);
 
   const fetchHistory = async () => {
+    setLoading(true);
+    setHistoryError(null);
     try {
       const res = await axios.get(apiUrl('/history'));
       setHistory(res.data);
-      setHistoryError(null);
     } catch (err) {
+      setHistory([]);
       setHistoryError(getApiErrorMessage(err, 'Failed to load prediction history.'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -36,7 +43,19 @@ export default function HistoryTable() {
       
       <div className="overflow-x-auto">
         {historyError ? (
-          <div className="px-6 py-8 text-center text-yellow-500 text-sm">{historyError}</div>
+          <div className="px-6 py-10 flex flex-col items-center text-center gap-3">
+            <AlertTriangle className="w-8 h-8 text-yellow-500" />
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-yellow-500">{historyError}</p>
+              <p className="text-xs text-gray-500">Prediction history couldn't be loaded.</p>
+            </div>
+            <button
+              onClick={fetchHistory}
+              className="mt-1 px-3 py-1.5 rounded-lg bg-accent hover:bg-violet-500 text-white text-xs font-medium transition-colors"
+            >
+              Retry
+            </button>
+          </div>
         ) : (
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-900/50 text-xs uppercase text-gray-400">
@@ -48,9 +67,24 @@ export default function HistoryTable() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-700/50">
-            {paginatedData.length === 0 ? (
+            {loading ? (
+              [...Array(SKELETON_ROWS)].map((_, i) => (
+                <tr key={i}>
+                  <td className="px-6 py-3"><div className="h-4 bg-gray-700/50 rounded animate-pulse w-32"></div></td>
+                  <td className="px-6 py-3"><div className="h-4 bg-gray-700/50 rounded animate-pulse w-20"></div></td>
+                  <td className="px-6 py-3"><div className="h-4 bg-gray-700/50 rounded animate-pulse w-12"></div></td>
+                  <td className="px-6 py-3"><div className="h-4 bg-gray-700/50 rounded animate-pulse w-24"></div></td>
+                </tr>
+              ))
+            ) : paginatedData.length === 0 ? (
               <tr>
-                <td colSpan="4" className="px-6 py-8 text-center text-gray-500">No predictions yet</td>
+                <td colSpan="4" className="px-6 py-10">
+                  <div className="flex flex-col items-center text-center gap-2">
+                    <ImageIcon className="w-8 h-8 text-gray-600" />
+                    <p className="text-gray-500 font-medium">No predictions yet</p>
+                    <p className="text-xs text-gray-600">Analyze an image or video to see results here</p>
+                  </div>
+                </td>
               </tr>
             ) : (
               paginatedData.map((row) => {
@@ -76,7 +110,7 @@ export default function HistoryTable() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {!loading && totalPages > 1 && (
         <div className="p-4 border-t border-gray-700 flex items-center justify-between">
           <span className="text-sm text-gray-400">
             Page {page} of {totalPages}
