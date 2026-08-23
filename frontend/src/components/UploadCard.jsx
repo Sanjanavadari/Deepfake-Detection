@@ -1,10 +1,32 @@
-import { useState, useRef } from 'react';
-import { UploadCloud, FileVideo, Image as ImageIcon, X } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { UploadCloud, FileVideo, Image as ImageIcon, X, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+// Conservative threshold — this runs on a memory-constrained backend, so longer
+// videos are worth flagging even though the real gate is the backend size limit.
+const LONG_VIDEO_THRESHOLD_SECONDS = 60;
+
+function formatDuration(totalSeconds) {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
 
 export default function UploadCard({ file, setFile, onClear }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(null);
   const fileInputRef = useRef(null);
+
+  const isVideo = Boolean(file?.type?.startsWith('video/'));
+  const previewUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file]);
+
+  useEffect(() => {
+    setVideoDuration(null);
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -76,26 +98,42 @@ export default function UploadCard({ file, setFile, onClear }) {
           </button>
           
           <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-700 relative group">
-            {file.type.startsWith('video/') ? (
-              <div className="aspect-video bg-black flex items-center justify-center">
-                <FileVideo className="w-16 h-16 text-gray-600" />
-              </div>
+            {isVideo ? (
+              <video
+                src={previewUrl}
+                muted
+                controls
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(e) => setVideoDuration(e.currentTarget.duration)}
+                className="w-full max-h-[300px] bg-black"
+              />
             ) : (
-              <img 
-                src={URL.createObjectURL(file)} 
-                alt="Preview" 
+              <img
+                src={previewUrl}
+                alt="Preview"
                 className="w-full h-auto max-h-[300px] object-contain bg-black/50"
               />
             )}
-            
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4">
+
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 pointer-events-none">
               <div className="flex items-center gap-2">
-                {file.type.startsWith('video/') ? <FileVideo className="w-4 h-4 text-accent" /> : <ImageIcon className="w-4 h-4 text-accent" />}
+                {isVideo ? <FileVideo className="w-4 h-4 text-accent" /> : <ImageIcon className="w-4 h-4 text-accent" />}
                 <p className="text-sm font-medium text-white truncate">{file.name}</p>
               </div>
-              <p className="text-xs text-gray-400 mt-1">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {isVideo && videoDuration != null && `${formatDuration(videoDuration)} — `}
+                {(file.size / (1024 * 1024)).toFixed(2)} MB
+              </p>
             </div>
           </div>
+
+          {isVideo && videoDuration != null && videoDuration > LONG_VIDEO_THRESHOLD_SECONDS && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 text-xs">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <p>Longer videos take more time and memory to process.</p>
+            </div>
+          )}
         </motion.div>
       )}
     </div>
